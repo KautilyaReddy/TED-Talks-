@@ -1,0 +1,287 @@
+---
+title: "MA331-Report: 2213548"
+subtitle: "TED Talks by Elizabeth Wayne and Miranda Wang"
+author: "Kamjula, Venkata Kautilya Reddy"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+### Don't delete this setup code chunk from your file
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, comment = NULL)   ## DON'T ALTER THIS: this is to prevent printing the code or any unnecessary addition in your final "html" report file.
+
+```
+
+## Introduction
+
+The main aim of this report is to compare and analyze the speech transcripts of the TED talk speakers **Elizabeth Wayne** and **Miranda Wang**.
+We will further talk about the topics discussed in each speech, the different phrases and the common words used by each speakers. We will also see how the talks differ in terms of sentiment analysis.
+ 
+**Elizabeth Wayne** has given a TED talk titled **"We can hack our immune cells to fight cancer"** in 2018. She ahppens to be a cancer researcher and a biomedical engineer. **Miranda Wang** is an environmentalist and a chemical engineer who has given a TED talk in 2019 on **"How to recycle plastic to make strong and lightweight materials"**.
+
+## Methods
+
+I used the tidytext package to analyze the transcripts of the two TED speeches in R. This also gives us a framework for natural language processing and text mining in R. This package lets me to analyze and manipulate the text data into a tidy format, where each word is represented in rows and attribute of the word to the column. The following steps were used in the process :
+
+ 1. Loaded the required R packages: *dsEssex, tidyverse, tidytext, ggrepel, dplyr, ggplot2, wordcloud, and syuzhet* and loaded the "*ted_talks*" data.
+ 2. Filtered the data to select the two speeches given by **Elizabeth Wayne** and **Miranda Wang**, named the data set as "*MyData*".
+ 3. The text data was cleaned by removing stopwords, punctuations, and unwanted texts. We further tokenized the text data by separating the text into individual words.
+ 4. The frequency of each word in the text data was counted.
+ 5. The sentiment of the data is caluculated using the *Bing* lexicon, which helps us to do the sentiment analysis.
+ 6. The results were visualized using bar charts, box plots and radar graphs.
+
+## Results
+
+We will start by loading the required packages and filtering the data for the talks given by **Elizabeth Wayne** and **Miranda Wang**.
+
+```{r}
+
+# install the dsEssex package if it hasn't been already installed.
+if(!require(dsEssex)){
+  if(!require("devtools")) install.packages("devtools")
+  devtools::install_github("statcourses/dsEssex")
+}
+
+# load the required packages 
+
+library(dsEssex)
+library(tidyverse)
+library(tidytext)
+library(ggrepel)
+library(dplyr)
+library(ggplot2)
+library(wordcloud)
+library(syuzhet)
+library(plotly)
+library(knitr)
+library(scales)
+library(radarchart)
+library(stringr)
+library(gridExtra)
+
+# load the 'ted_talks' data
+
+Main_Data <- ted_talks
+
+```
+The above data requires a lot of cleaning especially the text column.
+
+#### Data Preparation and analysis
+
+```{r}
+
+# Filter the two talk data of the the speakers assigned for analysis.
+
+MyData <- Main_Data %>%
+  filter(speaker %in% c("Elizabeth Wayne", "Miranda Wang"))
+
+# remove all the brackets and unnecessary punctuations in the text column.
+
+MyData <- MyData%>%
+mutate(text = str_replace_all(text, "\\{|\\#|\\:|\\[|\\'|\\;|\\,|\\]|\\}|\\)|\\(", ""))
+
+# Final data that would be working on. Removing the speaker names, other words and alias.  
+
+MyData <- MyData%>%
+mutate(text = str_replace_all(text, "(?i)\\elizabeth|\\wayne|\\miranda|\\wang|\\jeanny|\\yao|\\mw|\\jy|\\laughter|\\applause|\\audience", ""))
+
+```
+
+Looking at the speakers data we can tell that **Elizabeth Wayne's** speech has more views than that of **Miranda Wang**.
+
+```{r}
+      
+# Selecting only the Speaker and Views column for the table.
+
+Speaker_View <- data.frame(speaker = MyData$speaker, views = MyData$views)
+kable(Speaker_View)
+
+```
+
+
+```{r}
+
+# Cleaning the dataset and tidying the same by removing stop words and assinging tokens.
+
+transcripts_clean <- MyData %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  mutate(word = str_replace_all(word, "\\W", ""))
+
+```
+
+The data is now clean and shows tokenized information of each word. This data set is now ready for further deeper analysis. Analyzing the transcripts of the TED talks for these two speakers will give us interesting insights about the speech including the language, tone and the message that the user is trying to convey to the audience.
+
+Top 10 words for each speaker are identified in the below bar chart after identifying the most frequent words used by them.
+
+```{r}
+
+# filtered list of Elizabeth Wayne's words 
+
+Wayne_words <- transcripts_clean %>%
+  filter(speaker == "Elizabeth Wayne") %>% 
+  count(speaker, word, sort = TRUE)
+
+# Gives us the bar chart of the top 10 words used by Elizabeth Wayne
+
+Wayne_plot <- Wayne_words %>%
+ slice(1:10) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word)) + 
+  geom_col(fill = "#9FC5E8", width = 0.7) +
+  theme(plot.title = element_text(hjust = 0.7)) +
+    ggtitle("Top 10 words by Elizabeth Wayne") +
+  xlab("Count") +
+    theme(panel.background = element_rect(fill = "#f6f6f6")) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), # adjust title font style and centering
+        plot.title.position = "plot")
+
+# filtered list of Miranda Wang's words
+
+Wang_words <- transcripts_clean %>%
+  filter(speaker == "Miranda Wang") %>% 
+  count(speaker, word, sort = TRUE)
+
+# Gives us the bar chart of the top 10 words used by Miranda Wang
+
+Wang_Plot <- Wang_words %>% 
+slice(1:10) %>%
+mutate(word = reorder(word, n)) %>%
+ ggplot(aes(n, word)) + 
+  geom_col(fill = "#1E6091", width = 0.7) +
+  theme(plot.title = element_text(hjust = 0.7)) +
+      ggtitle("Top 10 words by Miranda Wang") +
+  xlab("Count") +
+    theme(panel.background = element_rect(fill = "#f6f6f6")) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), # adjust title font style and centering
+        plot.title.position = "plot")
+  
+
+# Merged plots for the above analysis.
+
+grid.arrange(Wayne_plot, Wang_Plot, ncol = 2)
+
+```
+
+The top two words used by **Elizabeth Wayne** were “*cells*”, and “*cancer*” whereas the top two words used by **Miranda Wang** were “*phthalates*”, and “*bacteria*”.
+
+**Elizabeth Wayne** used words the were related to the cancer research, and **Miranda Wang** used words realted to the environment. They also used some words in common such as *"solution", "work", and "problem",* indicating that they are addressing similar issues related to their respective fields.
+
+In terms of the grammatical features, some of the words appeared very often and the rest were not frequently spoken. However, **Elizabeth Wayne** used a wider range of words as compared to **Miranda Wang**.
+
+Comparing the sentence length of both speakers using a box plot.
+
+```{r}
+
+# Creating a Sentences data frame
+
+sentences <- MyData %>%
+  filter(speaker %in% c("Elizabeth Wayne", "Miranda Wang")) %>%
+  unnest_tokens(sentence, text, "sentences") %>%
+  mutate(sentence_length = str_count(sentence, "\\w+"))
+
+# filter Wayne's sentences.
+wayne_sentences <- MyData %>%
+  filter(speaker == "Elizabeth Wayne") %>% unnest_tokens(sentence, text, "sentences")
+
+#filter Wang's sentences.
+wang_sentences <- MyData %>% 
+  filter(speaker == "Miranda Wang") %>% unnest_tokens(sentence, text, "sentences")
+
+# Plot for comparision.
+
+ggplot(sentences, aes(x = speaker, y = sentence_length)) +
+  geom_boxplot(fill = "#9FC5E8") +
+  labs(x = "Speaker", y = "Sentence Length") +
+  ggtitle("Comparison of Sentence Lengths between Two Speakers") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), # adjust title font style and centering
+        plot.title.position = "plot")
+
+```
+
+Below are some of the findings from the above box plot : 
+
+ 1. The median line in the box plot represents the middle value of the sentence lengths, which gives us the average length of the sentence length. In this case with values being **18.53** and **17.54** for **Elizabeth Wayne** and **Miranda Wang** respectively, it indicates the average speech length of both the speakers were almost similar.
+ 2. Since most of the sentence length is overlapping, it indicates that there is a similarity in their speaking styles.
+ 3. There is an outlier in **Elizabeth Wayne's** speech indicating that there was one sentence which was not in range of the speeches and she owns the lengthiest sentence.
+
+#### Senitment analysis
+
+The sentiment analysis for both the speakers were done using *Bing* lexicon. We have furthermore plotted a bar chart for negative and positive sentiment words for each speaker.
+
+```{r}
+
+# Bing lexicon usage for analysis.
+
+sentiments_talks <- transcripts_clean %>% 
+  inner_join(get_sentiments('bing')) %>% 
+  count(word, speaker, sentiment)
+
+# counting the sentiments and grouping the same. 
+
+count_sentiments <- sentiments_talks %>%
+  group_by(speaker) %>%
+  mutate(total = sum(n), percent = n / total) %>% 
+  mutate(pos_prop = sum(total[sentiment == "positive"]) / total,
+         neg_prop = sum(total[sentiment == "negative"]) / total)
+
+top_words <- count_sentiments %>%
+  # group by sentiment
+  group_by(sentiment) %>%
+  slice_max(n, n = 20) %>%
+  mutate(word = reorder(word, n)) %>%
+  ungroup()
+
+top_words <- top_words %>% 
+  group_by(speaker) %>% 
+  filter(sentiment %in% c("positive", "negative")) %>% 
+  count(sentiment)
+
+# Bar chart for the above analysis. 
+
+top_words %>%
+  filter(sentiment %in% c("positive", "negative")) %>%
+  ggplot(aes(x = speaker, y = n, fill = sentiment)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  facet_grid(.~sentiment, scales = "free") +
+  ylab("count") +
+  scale_fill_manual(values = c("#9FC5E8", "#1E6091")) +
+  theme(panel.background = element_rect(fill = "#f6f6f6"))
+
+```
+
+We further used radar chart that displays the sentiment scores for different speakers on how to interpert it.
+The chart further helps us to understand the sentiment scores for different categories, such as *surprise*, *joy*, *fear*, etc. and to figure out the sentiment categories which are more of less prominent amongst both the speakers.
+
+###### Visualize the results of a sentiment analysis.
+
+```{r}
+# Getting the nrc lexicon
+
+nrc <- get_sentiments("nrc")
+
+# Creating a radar graph for further anayasis.
+
+suppressWarnings({
+  sentiment_spread <- transcripts_clean %>%
+    inner_join(nrc, by="word") %>%
+    filter(!grepl("positive|negative", sentiment)) %>%
+    mutate(index=speaker) %>%
+    count(sentiment, index) %>%
+    spread(index, n)
+
+  chartJSRadar(sentiment_spread)
+})
+
+
+```
+
+The resulting radar chart gives us information about the associated sentiment with the usage of words of each speaker on different axis, with the total number of words associated with a particular sentiment filling up a specific area. It can also be used to compare the positive and negative words usage by the speaker. 
+
+While we compare between we see that **Elizabeth Wayne** has used words that are more anger related and for **Miranda Wang** we see that she has used more words are more towards *disgust* and *fear*. However, we can see both of them have shared a similar words related to being *joy*. 
+
+Based on the above graph see that Elizabeth consistently scored high in *anger*, which says she was stressing about something she was trying to let the audience know and understand or it is time to act on the same.
+
+# Conclusion
+
+Overall, the speeches analysis suggests that the vocabulary and speaking styles were different for both the speakers. They have used the emotive language well versely in order to keep the audience engaged. The anaysis also highlighted how important the language used is, the frequency of words and how lexical diversity plays a important role in public speaking.  
+
